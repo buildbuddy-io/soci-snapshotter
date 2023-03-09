@@ -392,6 +392,28 @@ type filesystem struct {
 	fuseMetricsEmitWaitDuration time.Duration
 	pr                          *preresolver
 }
+func (fs *filesystem) getClient(labels map[string]string) (*http.Client, error) {
+	// Get source information of this layer.
+	src, err := fs.getSources(labels)
+	if err != nil {
+		return nil, err
+	} else if len(src) == 0 {
+		return nil, fmt.Errorf("source must be passed")
+	}
+	return src[0].Hosts[0].Client, nil
+}
+
+func (fs *filesystem) GetZtocForLayer(ctx context.Context, imageRef, indexDigest, imageManifestDigest, layerDigest string, labels map[string]string) (ocispec.Descriptor, error) {
+	client, err := fs.getClient(labels)
+	if err != nil {
+		return ocispec.Descriptor{}, err
+	}
+	sociContext, err := fs.getSociContext(ctx, imageRef, indexDigest, imageManifestDigest, client)
+	if err != nil {
+		return ocispec.Descriptor{}, err
+	}
+	return sociContext.imageLayerToSociDesc[layerDigest], nil
+}
 
 func (fs *filesystem) MountLocal(ctx context.Context, mountpoint string, labels map[string]string, mounts []mount.Mount) error {
 	imageRef, ok := labels[ctdsnapshotters.TargetRefLabel]
@@ -479,7 +501,10 @@ func (fs *filesystem) Mount(ctx context.Context, mountpoint string, labels map[s
 	} else if len(src) == 0 {
 		return fmt.Errorf("source must be passed")
 	}
-	client := src[0].Hosts[0].Client
+	client, err := fs.getClient(labels)
+	if err != nil {
+		return fmt.Errorf("unable to get http client: %w", err)
+	}
 	c, err := fs.getSociContext(ctx, imageRef, sociIndexDigest, imgDigest, client)
 	if err != nil {
 		return fmt.Errorf("unable to fetch SOCI artifacts: %w", err)
