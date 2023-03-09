@@ -7,3 +7,4 @@ go.work
 go.work.sum
 /benchmark/*/output/
 /benchmark/bin/
+*.pb.go
