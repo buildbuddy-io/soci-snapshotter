@@ -56,6 +56,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/moby/sys/mountinfo"
 	"github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 )
@@ -102,6 +103,7 @@ var (
 // directory. After that it applies the difference to the parent layers if there are any.
 // If succeeded, the mountpoint directory will be treated as a regular layer snapshot.
 // If MountLocal() fails, the mountpoint directory MUST be cleaned up.
+// GetZtocForLayer() returns the OCI Descriptor of the ztoc of the provided image, if found.
 type FileSystem interface {
 	Mount(ctx context.Context, mountpoint string, labels map[string]string) error
 	Check(ctx context.Context, mountpoint string, labels map[string]string) error
@@ -109,6 +111,7 @@ type FileSystem interface {
 	MountLocal(ctx context.Context, mountpoint string, labels map[string]string, mounts []mount.Mount) error
 	IDMapMount(ctx context.Context, mountpoint, activeLayerID string, idmap idtools.IDMap) (string, error)
 	IDMapMountLocal(ctx context.Context, mountpoint, activeLayerID string, idmap idtools.IDMap) (string, error)
+	GetZtocForLayer(ctx context.Context, imageRef, indexDigest, imageManifestDigest, layerDigest string, labels map[string]string) (ocispec.Descriptor, error)
 }
 
 // SnapshotterConfig is used to configure the remote snapshotter instance
