@@ -542,17 +542,17 @@ func GetImageManifestDescriptor(ctx context.Context, cs content.Store, imageTarg
 }
 
 // WriteSociIndex writes the SociIndex manifest to oras `store`.
-func WriteSociIndex(ctx context.Context, indexWithMetadata *IndexWithMetadata, contentStore store.Store, artifactsDb *ArtifactsDb) error {
+func WriteSociIndex(ctx context.Context, indexWithMetadata *IndexWithMetadata, contentStore store.Store, artifactsDb *ArtifactsDb) (string, error) {
 	// batch will prevent content from being garbage collected in the middle of the following operations
 	ctx, batchDone, err := contentStore.BatchOpen(ctx)
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer batchDone(ctx)
 
 	manifest, err := MarshalIndex(indexWithMetadata.Index)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	// If we're serializing the SOCI index as an OCI 1.0 Manifest, create an
@@ -561,7 +561,7 @@ func WriteSociIndex(ctx context.Context, indexWithMetadata *IndexWithMetadata, c
 	if indexWithMetadata.Index.MediaType == ocispec.MediaTypeImageManifest {
 		err = contentStore.Push(ctx, defaultConfigDescriptor, bytes.NewReader(defaultConfigContent))
 		if err != nil && !errors.Is(err, errdef.ErrAlreadyExists) {
-			return fmt.Errorf("error creating OCI 1.0 empty config: %w", err)
+			return "", fmt.Errorf("error creating OCI 1.0 empty config: %w", err)
 		}
 	}
 
@@ -574,18 +574,18 @@ func WriteSociIndex(ctx context.Context, indexWithMetadata *IndexWithMetadata, c
 
 	err = contentStore.Push(ctx, desc, bytes.NewReader(manifest))
 	if err != nil && !errors.Is(err, errdef.ErrAlreadyExists) {
-		return fmt.Errorf("cannot write SOCI index to local store: %w", err)
+		return "", fmt.Errorf("cannot write SOCI index to local store: %w", err)
 	}
 
 	log.G(ctx).WithField("digest", dgst.String()).Debugf("soci index has been written")
 
 	err = store.LabelGCRoot(ctx, contentStore, desc)
 	if err != nil {
-		return fmt.Errorf("cannot apply garbage collection label to index %s: %w", desc.Digest.String(), err)
+		return "", fmt.Errorf("cannot apply garbage collection label to index %s: %w", desc.Digest.String(), err)
 	}
 	err = store.LabelGCRefContent(ctx, contentStore, desc, "config", defaultConfigDescriptor.Digest.String())
 	if err != nil {
-		return fmt.Errorf("cannot apply garbage collection label to index %s referencing default config: %w", desc.Digest.String(), err)
+		return "", fmt.Errorf("cannot apply garbage collection label to index %s referencing default config: %w", desc.Digest.String(), err)
 	}
 
 	var allErr error
@@ -596,13 +596,13 @@ func WriteSociIndex(ctx context.Context, indexWithMetadata *IndexWithMetadata, c
 		}
 	}
 	if allErr != nil {
-		return fmt.Errorf("cannot apply one or more garbage collection labels to index %s: %w", desc.Digest.String(), allErr)
+		return "", fmt.Errorf("cannot apply one or more garbage collection labels to index %s: %w", desc.Digest.String(), allErr)
 	}
 
 	refers := indexWithMetadata.Index.Subject
 
 	if refers == nil {
-		return errors.New("cannot write soci index: the Refers field is nil")
+		return "", errors.New("cannot write soci index: the Refers field is nil")
 	}
 
 	// this entry is persisted to be used by cli push
@@ -617,7 +617,7 @@ func WriteSociIndex(ctx context.Context, indexWithMetadata *IndexWithMetadata, c
 		MediaType:      indexWithMetadata.Index.MediaType,
 		CreatedAt:      indexWithMetadata.CreatedAt,
 	}
-	return artifactsDb.WriteArtifactEntry(entry)
+	return dgst.String(), artifactsDb.WriteArtifactEntry(entry)
 }
 
 func (b *IndexBuilder) maybeAddDisableXattrAnnotation(ztocDesc *ocispec.Descriptor, ztoc *ztoc.Ztoc) {
