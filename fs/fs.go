@@ -861,7 +861,20 @@ func (fs *filesystem) findSociIndexDesc(ctx context.Context, imageManifestDigest
 		log.G(ctx).Debug("using provided soci index digest")
 		return parseIndexDigest(sociIndexDigest)
 	}
+
 	log.G(ctx).Debug("index digest not provided")
+
+	if sociIndexDigest == "" {
+		log.G(ctx).Info("index digest not provided, searching for it locally")
+		// TODO(iain): pass this directory as an argument or parameter.
+		index, err := os.ReadFile("/var/lib/soci-snapshotter-grpc/indexes/" + strings.Replace(imageManifestDigest, "sha256:", "", -1))
+		if err == nil {
+			sociIndexDigest = strings.TrimSpace(string(index))
+			return parseIndexDigest(sociIndexDigest)
+		} else {
+			log.G(ctx).Info("unable to locate soci index locally")
+		}
+	}
 
 	if !fs.pullModes.SOCIv1.Enable && !fs.pullModes.SOCIv2.Enable {
 		return ocispec.Descriptor{}, ErrAllLazyPullModesDisabled
