@@ -72,6 +72,9 @@ const (
 
 	// Default path to soci content addressable storage
 	DefaultSociContentStorePath = "/var/lib/soci-snapshotter-grpc/content"
+
+	// Default path to local SOCI Index storage
+	DefaultSociIndexStorePath = "/var/lib/soci-snapshotter-grpc/indexes/"
 )
 
 func NewStoreConfig(opts ...Option) config.ContentStoreConfig {
