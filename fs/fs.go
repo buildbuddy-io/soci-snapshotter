@@ -302,7 +302,7 @@ type sociContext struct {
 	fuseOperationCounter *layer.FuseOperationCounter
 }
 
-func (c *sociContext) Init(fsCtx context.Context, ctx context.Context, imageRef, indexDigest, imageManifestDigest string, store store.Store, fuseOpEmitWaitDuration time.Duration, client *http.Client) error {
+func (c *sociContext) Init(fsCtx context.Context, ctx context.Context, imageRef, indexDigest, imageManifestDigest string, contentStore store.Store, fuseOpEmitWaitDuration time.Duration, client *http.Client) error {
 	var retErr error
 	c.fetchOnce.Do(func() {
 		defer func() {
@@ -331,12 +331,11 @@ func (c *sociContext) Init(fsCtx context.Context, ctx context.Context, imageRef,
 		}
 
 		if indexDigest == "" {
-			log.G(ctx).Info("index digest not provided, searching for it locally: /var/lib/soci-snapshotter-grpc/indexes/" + strings.ReplaceAll(imageManifestDigest, "sha256:", ""))
-			// TODO(iain): pass this directory as an argument or parameter.
-			index, err := os.ReadFile("/var/lib/soci-snapshotter-grpc/indexes/" + strings.ReplaceAll(imageManifestDigest, "sha256:", ""))
+			index, err := os.ReadFile(store.DefaultSociIndexStorePath + strings.ReplaceAll(imageManifestDigest, "sha256:", ""))
 			if err == nil {
 				indexDigest = strings.TrimSpace(string(index))
 				indexDesc.Digest = digest.Digest(indexDigest)
+				log.G(ctx).Info("located index locally, bypassing Referrers API call")
 			} else {
 				log.G(ctx).Info("unable to locate soci index locally")
 			}
@@ -359,7 +358,7 @@ func (c *sociContext) Init(fsCtx context.Context, ctx context.Context, imageRef,
 
 		log.G(ctx).WithField("digest", indexDesc.Digest.String()).Infof("fetching SOCI artifacts using index descriptor")
 
-		index, err := FetchSociArtifacts(fsCtx, refspec, indexDesc, store, remoteStore)
+		index, err := FetchSociArtifacts(fsCtx, refspec, indexDesc, contentStore, remoteStore)
 		if err != nil {
 			retErr = fmt.Errorf("error trying to fetch SOCI artifacts: %w", err)
 			return
