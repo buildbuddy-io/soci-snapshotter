@@ -18,7 +18,6 @@ package commands
 
 import (
 	"errors"
-	"fmt"
 	"os"
 
 	"github.com/awslabs/soci-snapshotter/cmd/soci/commands/internal"
@@ -128,11 +127,9 @@ var CreateCommand = cli.Command{
 				return err
 			}
 
-			dgst, err := soci.WriteSociIndex(ctx, sociIndexWithMetadata, blobStore, builder.ArtifactsDb)
-			if err != nil {
+			if _, err := soci.WriteSociIndex(ctx, sociIndexWithMetadata, blobStore, builder.ArtifactsDb); err != nil {
 				return err
 			}
-			fmt.Printf("platform %s -> soci index %s\n", plat, dgst)
 		}
 		return nil
 	},
