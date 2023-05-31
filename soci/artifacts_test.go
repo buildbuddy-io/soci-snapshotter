@@ -132,7 +132,7 @@ func TestArtifactDB_DoesNotExist(t *testing.T) {
 		// Fail db initialization.
 		db = nil
 	})
-	_, err := NewDB(ArtifactsDbPath(t.TempDir()))
+	_, err := NewDB(ArtifactsDbPath("/dev/null"))
 	if err == nil {
 		t.Fatalf("getArtifactEntry should fail since artifacts.db doesn't exist")
 	}
