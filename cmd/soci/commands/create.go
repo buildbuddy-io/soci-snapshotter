@@ -143,6 +143,7 @@ var CreateCommand = &cli.Command{
 			srcImg.Labels[sociIndexGCLabel] = indexWithMetadata.Desc.Digest.String()
 			is.Update(ctx, srcImg, "labels")
 		}
+
 		return nil
 	},
 }
