@@ -127,7 +127,7 @@ var CreateCommand = cli.Command{
 				return err
 			}
 
-			_, err = soci.WriteSociIndex(ctx, sociIndexWithMetadata, blobStore, builder.ArtifactsDb)
+			err = soci.WriteSociIndex(ctx, sociIndexWithMetadata, blobStore, builder.ArtifactsDb)
 			if err != nil {
 				return err
 			}
