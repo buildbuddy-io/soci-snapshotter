@@ -27,6 +27,7 @@ import (
 	"net/url"
 	"strconv"
 	"os"
+	"path/filepath"
 
 	sociremote "github.com/awslabs/soci-snapshotter/fs/remote"
 	socihttp "github.com/awslabs/soci-snapshotter/internal/http"
@@ -263,31 +264,20 @@ func constructRef(refspec reference.Spec, desc ocispec.Descriptor) string {
 	return fmt.Sprintf("%s@%s", refspec.Locator, desc.Digest.String())
 }
 
-type nopCloser struct {
-	io.Reader
-}
-
-func (nopCloser) Close() error { return nil }
-
-func NopCloser(r io.Reader) io.ReadCloser {
-	return nopCloser{r}
-}
-
 // Fetches the artifact identified by the descriptor.
 // It first checks the local store for the artifact.
 // If not found, if constructs the ref and fetches it from remote.
 func (f *artifactFetcher) Fetch(ctx context.Context, desc ocispec.Descriptor) (io.ReadCloser, bool, error) {
 	// Try to read the requested artifact from the local filesystem first.
 	// This is faster and lets us bypass all of the container registry interaction when available.
-	// TODO(iain): pass this directory as an argument or parameter.
-	localFilename := "/var/lib/soci-snapshotter-grpc/content/blobs/sha256/" + desc.Digest.Encoded()
+	localFilename := filepath.Join(store.DefaultSociContentStorePath, "blobs", "sha256", desc.Digest.Encoded())
 	if _, err := os.Stat(localFilename); err == nil {
 		file, err := os.Open(localFilename)
 		if err != nil {
 			return nil, false, fmt.Errorf("error reading local file %s: %w", localFilename, err)
 		}
 		log.G(ctx).WithField("digest", desc.Digest).Debug("fetched artifact on local filesystem, skipping local oras store and remote fetch")
-		return NopCloser(file), true, nil
+		return io.NopCloser(file), true, nil
 	} else {
 		log.G(ctx).WithField("digest", desc.Digest).Debug("failed to locate artifact on local filesystem, falling back to local oras store")
 	}
