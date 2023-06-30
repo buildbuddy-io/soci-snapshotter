@@ -46,6 +46,7 @@ import (
 	crialpha "github.com/awslabs/soci-snapshotter/service/keychain/cri/v1alpha"
 	"github.com/awslabs/soci-snapshotter/service/keychain/dockerconfig"
 	"github.com/awslabs/soci-snapshotter/service/keychain/kubeconfig"
+	"github.com/awslabs/soci-snapshotter/service/keychain/local_keychain"
 	"github.com/awslabs/soci-snapshotter/service/resolver"
 	"github.com/containerd/containerd/defaults"
 	"github.com/containerd/containerd/pkg/dialer"
@@ -94,7 +95,8 @@ func init() {
 			ic.Meta.Exports["root"] = root
 
 			// Configure keychain
-			credsFuncs := []resolver.Credential{dockerconfig.NewDockerConfigKeychain(ctx)}
+			credsFuncs := []resolver.Credential{local_keychain.Keychain(ctx)}
+			credsFuncs = append(credsFuncs, dockerconfig.NewDockerConfigKeychain(ctx))
 			if config.KubeconfigKeychainConfig.EnableKeychain {
 				var opts []kubeconfig.Option
 				if kcp := config.KubeconfigKeychainConfig.KubeconfigPath; kcp != "" {
