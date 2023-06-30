@@ -1,6 +1,7 @@
 /out
 /release
 *.db
+*.pb.go
 .vscode/
 go.work
 go.work.sum

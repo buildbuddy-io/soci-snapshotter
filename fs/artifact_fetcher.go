@@ -23,9 +23,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strconv"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"github.com/awslabs/soci-snapshotter/soci"
 	"github.com/awslabs/soci-snapshotter/soci/store"
