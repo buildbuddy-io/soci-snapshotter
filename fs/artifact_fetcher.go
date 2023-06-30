@@ -25,9 +25,9 @@ import (
 	"mime"
 	"net/http"
 	"net/url"
-	"strconv"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	sociremote "github.com/awslabs/soci-snapshotter/fs/remote"
 	socihttp "github.com/awslabs/soci-snapshotter/internal/http"
