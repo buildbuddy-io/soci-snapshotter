@@ -52,7 +52,7 @@ STARGZ_BINARY?=/usr/local/bin/containerd-stargz-grpc
 INTEG_TEST_CONTAINERS=$(strip $(shell docker ps -aqf name="soci-integration-*"))
 SOCI_BASE_IMAGE_IDS=$(shell docker image ls -qf reference="*:soci_test")
 
-CMD=proto soci-snapshotter-grpc soci soci-store
+CMD=soci-store soci-snapshotter-grpc soci
 
 CMD_BINARIES=$(addprefix $(OUTDIR)/,$(CMD))
 
@@ -70,7 +70,7 @@ NERDCTL_PATCH = $(SOCI_SNAPSHOTTER_PROJECT_ROOT)/integration/config/nerdctl.patc
 
 .PHONY: all build check flatc add-ltag install uninstall tidy vendor clean clean-coverage \
 	clean-integration test test-with-coverage show-test-coverage show-test-coverage-html nerdctl-with-idmapping \
-	integration integration-with-coverage show-integration-coverage show-integration-coverage-html \
+	integration integration-with-coverage proto show-integration-coverage show-integration-coverage-html \
 	release benchmarks build-benchmarks benchmarks-perf-test benchmarks-comparison-test
 
 all: build
@@ -88,7 +88,7 @@ soci: FORCE
 soci-store: proto
 	cd cmd/ ; GO111MODULE=$(GO111MODULE_VALUE) go build -o $(OUTDIR)/$@ $(GO_BUILD_FLAGS) $(GO_LD_FLAGS) ./soci-store
 
-proto: FORCE
+proto:
 	protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative proto/local_keychain.proto
 
 check:
