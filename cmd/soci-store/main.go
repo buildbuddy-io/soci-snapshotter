@@ -110,7 +110,7 @@ func main() {
 	}
 
 	// Prepare kubeconfig-based keychain if required
-	credsFuncs := []resolver.Credential{local_keychain.Keychain(ctx)}
+	credsFuncs := []resolver.Credential{local_keychain.Keychain(ctx).GetCredentials}
 	credsFuncs = append(credsFuncs, dockerconfig.NewDockerConfigKeychain(ctx))
 	if serviceCfg.KubeconfigKeychainConfig.EnableKeychain {
 		var opts []kubeconfig.Option
