@@ -95,7 +95,7 @@ func init() {
 			ic.Meta.Exports["root"] = root
 
 			// Configure keychain
-			credsFuncs := []resolver.Credential{local_keychain.Keychain(ctx).GetCredentials}
+			credsFuncs := []resolver.Credential{local_keychain.Keychain(ctx, local_keychain.Port()).GetCredentials}
 			credsFuncs = append(credsFuncs, dockerconfig.NewDockerConfigKeychain(ctx))
 			if config.KubeconfigKeychainConfig.EnableKeychain {
 				var opts []kubeconfig.Option

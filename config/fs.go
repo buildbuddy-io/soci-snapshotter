@@ -57,6 +57,10 @@ type FSConfig struct {
 	MountTimeoutSec                int64  `toml:"mount_timeout_sec"`
 	FuseMetricsEmitWaitDurationSec int64  `toml:"fuse_metrics_emit_wait_duration_sec"`
 
+	RootPath         string `toml:"root_path"`
+	ContentStorePath string `toml:"content_store_path"`
+	IndexStorePath   string `toml:"index_store_path"`
+
 	RetryableHTTPClientConfig `toml:"http"`
 	BlobConfig                `toml:"blob"`
 
