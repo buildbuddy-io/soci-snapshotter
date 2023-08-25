@@ -55,18 +55,20 @@ type resolverStorage interface {
 
 // artifactFetcher is responsible for fetching and storing artifacts in the provided artifact store.
 type artifactFetcher struct {
-	remoteStore resolverStorage
-	localStore  store.BasicStore
-	refspec     reference.Spec
+	remoteStore      resolverStorage
+	localStore       store.BasicStore
+	refspec          reference.Spec
+	contentStorePath string
 }
 
 // Constructs a new artifact fetcher
 // Takes in the image reference, the local store and the resolver
-func newArtifactFetcher(refspec reference.Spec, localStore store.BasicStore, remoteStore resolverStorage) (*artifactFetcher, error) {
+func newArtifactFetcher(refspec reference.Spec, localStore store.BasicStore, remoteStore resolverStorage, contentStorePath string) (*artifactFetcher, error) {
 	return &artifactFetcher{
-		localStore:  localStore,
-		remoteStore: remoteStore,
-		refspec:     refspec,
+		localStore:       localStore,
+		remoteStore:      remoteStore,
+		refspec:          refspec,
+		contentStorePath: contentStorePath,
 	}, nil
 }
 
@@ -96,7 +98,7 @@ func (f *artifactFetcher) constructRef(desc ocispec.Descriptor) string {
 func (f *artifactFetcher) Fetch(ctx context.Context, desc ocispec.Descriptor) (io.ReadCloser, bool, error) {
 	// Try to read the requested artifact from the local filesystem first.
 	// This is faster and lets us bypass all of the container registry interaction when available.
-	localFilename := filepath.Join(store.DefaultSociContentStorePath, "blobs", "sha256", desc.Digest.Encoded())
+	localFilename := filepath.Join(f.contentStorePath, "blobs", "sha256", desc.Digest.Encoded())
 	if _, err := os.Stat(localFilename); err == nil {
 		file, err := os.Open(localFilename)
 		if err != nil {
@@ -154,8 +156,9 @@ func (f *artifactFetcher) Store(ctx context.Context, desc ocispec.Descriptor, re
 	return nil
 }
 
-func FetchSociArtifacts(ctx context.Context, refspec reference.Spec, indexDesc ocispec.Descriptor, localStore store.Store, remoteStore resolverStorage) (*soci.Index, error) {
-	fetcher, err := newArtifactFetcher(refspec, localStore, remoteStore)
+func FetchSociArtifacts(ctx context.Context, refspec reference.Spec, indexDesc ocispec.Descriptor, localStore store.Store, remoteStore resolverStorage, contentStorePath string) (*soci.Index, error) {
+
+	fetcher, err := newArtifactFetcher(refspec, localStore, remoteStore, contentStorePath)
 	if err != nil {
 		return nil, fmt.Errorf("could not create an artifact fetcher: %w", err)
 	}

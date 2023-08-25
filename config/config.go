@@ -47,7 +47,7 @@ import (
 
 const (
 	// Default path to snapshotter root dir
-	SociSnapshotterRootPath = "/var/lib/soci-snapshotter-grpc/"
+	DefaultSociSnapshotterRootPath = "/var/lib/soci-snapshotter-grpc/"
 
 	defaultConfigPath = "/etc/soci-snapshotter-grpc/config.toml"
 )

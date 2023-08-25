@@ -286,6 +286,8 @@ func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts .
 		entryTimeout:                entryTimeout,
 		negativeTimeout:             negativeTimeout,
 		contentStore:                store,
+		indexStorePath:              cfg.IndexStorePath,
+		contentStorePath:            cfg.ContentStorePath,
 		bgFetcher:                   bgFetcher,
 		mountTimeout:                mountTimeout,
 		fuseMetricsEmitWaitDuration: fuseMetricsEmitWaitDuration,
@@ -303,7 +305,7 @@ type sociContext struct {
 	fuseOperationCounter *layer.FuseOperationCounter
 }
 
-func (c *sociContext) Init(fsCtx context.Context, ctx context.Context, imageRef, indexDigest, imageManifestDigest string, contentStore store.Store, fuseOpEmitWaitDuration time.Duration, client *http.Client) error {
+func (c *sociContext) Init(fsCtx context.Context, ctx context.Context, imageRef, indexDigest, imageManifestDigest string, contentStore store.Store, indexStorePath, contentStorePath string, fuseOpEmitWaitDuration time.Duration, client *http.Client) error {
 	var retErr error
 	c.fetchOnce.Do(func() {
 		defer func() {
@@ -334,7 +336,7 @@ func (c *sociContext) Init(fsCtx context.Context, ctx context.Context, imageRef,
 		if indexDigest == "" {
 			imageManifestHash := strings.TrimPrefix(imageManifestDigest, "sha256:")
 			log.G(ctx).Debugf("soci index digest for image %s not provided, attempting to retrieve locally/remotely", imageManifestHash)
-			index, err := os.ReadFile(filepath.Join(store.DefaultSociIndexStorePath, imageManifestHash))
+			index, err := os.ReadFile(filepath.Join(indexStorePath, imageManifestHash))
 			if err == nil {
 				indexDigest = strings.TrimSpace(string(index))
 				indexDesc.Digest = digest.Digest(indexDigest)
@@ -361,7 +363,7 @@ func (c *sociContext) Init(fsCtx context.Context, ctx context.Context, imageRef,
 
 		log.G(ctx).WithField("digest", indexDesc.Digest.String()).Infof("fetching SOCI artifacts using index descriptor")
 
-		index, err := FetchSociArtifacts(fsCtx, refspec, indexDesc, contentStore, remoteStore)
+		index, err := FetchSociArtifacts(fsCtx, refspec, indexDesc, contentStore, remoteStore, contentStorePath)
 		if err != nil {
 			retErr = fmt.Errorf("%w: error trying to fetch SOCI artifacts: %w", snapshot.ErrNoIndex, err)
 			return
@@ -403,6 +405,8 @@ type filesystem struct {
 	negativeTimeout             time.Duration
 	sociContexts                sync.Map
 	contentStore                store.Store
+	indexStorePath              string
+	contentStorePath            string
 	bgFetcher                   *bf.BackgroundFetcher
 	mountTimeout                time.Duration
 	fuseMetricsEmitWaitDuration time.Duration
@@ -455,7 +459,7 @@ func (fs *filesystem) MountLocal(ctx context.Context, mountpoint string, labels 
 	if err != nil {
 		return fmt.Errorf("cannot create remote store: %w", err)
 	}
-	fetcher, err := newArtifactFetcher(refspec, fs.contentStore, remoteStore)
+	fetcher, err := newArtifactFetcher(refspec, fs.contentStore, remoteStore, fs.contentStorePath)
 	if err != nil {
 		return fmt.Errorf("cannot create fetcher: %w", err)
 	}
@@ -489,7 +493,7 @@ func (fs *filesystem) getSociContext(ctx context.Context, imageRef, indexDigest,
 	if !ok {
 		return nil, fmt.Errorf("could not load index: fs soci context is invalid type for %s", indexDigest)
 	}
-	err := c.Init(fs.ctx, ctx, imageRef, indexDigest, imageManifestDigest, fs.contentStore, fs.fuseMetricsEmitWaitDuration, client)
+	err := c.Init(fs.ctx, ctx, imageRef, indexDigest, imageManifestDigest, fs.contentStore, fs.indexStorePath, fs.contentStorePath, fs.fuseMetricsEmitWaitDuration, client)
 	return c, err
 }
 
