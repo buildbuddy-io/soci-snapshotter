@@ -327,6 +327,8 @@ func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts .
 		entryTimeout:                entryTimeout,
 		negativeTimeout:             negativeTimeout,
 		contentStore:                store,
+		indexStorePath:              cfg.IndexStorePath,
+		contentStorePath:            cfg.ContentStorePath,
 		bgFetcher:                   bgFetcher,
 		mountTimeout:                mountTimeout,
 		fuseMetricsEmitWaitDuration: fuseMetricsEmitWaitDuration,
@@ -402,6 +404,8 @@ type filesystem struct {
 	negativeTimeout             time.Duration
 	sociContexts                sync.Map
 	contentStore                store.Store
+	indexStorePath              string
+	contentStorePath            string
 	bgFetcher                   *bf.BackgroundFetcher
 	mountTimeout                time.Duration
 	fuseMetricsEmitWaitDuration time.Duration
@@ -765,7 +769,7 @@ func (fs *filesystem) MountLocal(ctx context.Context, mountpoint string, labels 
 	if err != nil {
 		return fmt.Errorf("cannot create remote store: %w", err)
 	}
-	fetcher, err := newArtifactFetcher(refspec, fs.contentStore, remoteStore)
+	fetcher, err := newArtifactFetcher(refspec, fs.contentStore, remoteStore, fs.contentStorePath)
 	if err != nil {
 		return fmt.Errorf("cannot create fetcher: %w", err)
 	}
@@ -843,7 +847,7 @@ func (fs *filesystem) fetchSociIndex(ctx context.Context, imageRef, indexDigest,
 
 	log.G(ctx).WithField("digest", indexDesc.Digest.String()).Infof("fetching SOCI artifacts using index descriptor")
 
-	index, err := FetchSociArtifacts(ctx, refspec, indexDesc, fs.contentStore, remoteStore)
+	index, err := FetchSociArtifacts(ctx, refspec, indexDesc, fs.contentStore, remoteStore, fs.contentStorePath)
 	if err != nil {
 		return nil, fmt.Errorf("%w: error trying to fetch SOCI artifacts: %w", snapshot.ErrNoIndex, err)
 	}
@@ -867,9 +871,10 @@ func (fs *filesystem) findSociIndexDesc(ctx context.Context, imageManifestDigest
 	if sociIndexDigest == "" {
 		imageManifestHash := strings.TrimPrefix(imageManifestDigest, "sha256:")
 		log.G(ctx).Debugf("soci index digest for image %s not provided, attempting to retrieve locally/remotely", imageManifestHash)
-		index, err := os.ReadFile("/var/lib/soci-snapshotter-grpc/indexes/" + strings.ReplaceAll(imageManifestDigest, "sha256:", ""))
+		index, err := os.ReadFile(filepath.Join(fs.indexStorePath, imageManifestHash))
 		if err == nil {
 			sociIndexDigest = strings.TrimSpace(string(index))
+			log.G(ctx).Info("located index locally, bypassing Referrers API call")
 			return parseIndexDigest(sociIndexDigest)
 		} else {
 			log.G(ctx).Info("unable to locate soci index locally")

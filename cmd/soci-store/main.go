@@ -38,7 +38,6 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"syscall"
 	"time"
 
 	"github.com/awslabs/soci-snapshotter/config"
@@ -110,7 +109,7 @@ func main() {
 	}
 
 	// Prepare kubeconfig-based keychain if required
-	credsFuncs := []resolver.Credential{local_keychain.Keychain(ctx).GetCredentials}
+	credsFuncs := []resolver.Credential{local_keychain.Keychain(ctx, local_keychain.Port()).GetCredentials}
 	credsFuncs = append(credsFuncs, dockerconfig.NewDockerConfigKeychain(ctx))
 	if serviceCfg.KubeconfigKeychainConfig.EnableKeychain {
 		var opts []kubeconfig.Option
@@ -157,11 +156,12 @@ func main() {
 	if err != nil {
 		log.G(ctx).WithError(err).Fatalf("failed to prepare pool")
 	}
-	if err := store.Mount(ctx, mountPoint, layerManager, serviceCfg.Debug); err != nil {
+	server, err := store.Mount(ctx, mountPoint, layerManager, serviceCfg.Debug)
+	if err != nil {
 		log.G(ctx).WithError(err).Fatalf("failed to mount fs at %q", mountPoint)
 	}
 	defer func() {
-		syscall.Unmount(mountPoint, 0)
+		server.Unmount()
 		log.G(ctx).Info("Exiting")
 	}()
 

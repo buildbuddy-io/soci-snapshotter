@@ -366,7 +366,7 @@ func TestFetchSociArtifacts(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			ctx := context.Background()
-			_, err = FetchSociArtifacts(ctx, reference.Spec{}, sociIndexDesc, newFakeLocalStore(), newFakeRemoteStoreWithContents(test.remoteContents))
+			_, err = FetchSociArtifacts(ctx, reference.Spec{}, sociIndexDesc, newFakeLocalStore(), newFakeRemoteStoreWithContents(test.remoteContents), store.DefaultSociContentStorePath)
 			if !errors.Is(err, test.expectedError) {
 				t.Fatalf("unexpected error, got: %v. expected: %v", err, test.expectedError)
 			}
@@ -379,7 +379,7 @@ func newFakeArtifactFetcher(ref string, contents []byte) (*artifactFetcher, erro
 	if err != nil {
 		return nil, err
 	}
-	return newArtifactFetcher(refspec, memory.New(), newFakeRemoteStore(contents))
+	return newArtifactFetcher(refspec, memory.New(), newFakeRemoteStore(contents), store.DefaultSociContentStorePath)
 }
 
 func newFakeLocalStore() store.Store {
