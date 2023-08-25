@@ -23,6 +23,7 @@ import (
 	"io"
 	"testing"
 
+	"github.com/awslabs/soci-snapshotter/soci/store"
 	"github.com/containerd/containerd/reference"
 	"github.com/google/go-cmp/cmp"
 	"github.com/opencontainers/go-digest"
@@ -218,7 +219,7 @@ func newFakeArtifactFetcher(ref string, contents []byte) (*artifactFetcher, erro
 	if err != nil {
 		return nil, err
 	}
-	return newArtifactFetcher(refspec, memory.New(), newFakeRemoteStore(contents))
+	return newArtifactFetcher(refspec, memory.New(), newFakeRemoteStore(contents), store.DefaultSociContentStorePath)
 }
 
 func newFakeRemoteStore(contents []byte) resolverStorage {

@@ -45,7 +45,6 @@ import (
 	"github.com/awslabs/soci-snapshotter/fs/source"
 	"github.com/awslabs/soci-snapshotter/metadata"
 	"github.com/awslabs/soci-snapshotter/snapshot"
-	"github.com/awslabs/soci-snapshotter/soci/store"
 	"github.com/awslabs/soci-snapshotter/util/namedmutex"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/reference"
@@ -72,7 +71,10 @@ func NewLayerManager(ctx context.Context, root string, hosts source.RegistryHost
 	if maxConcurrency == 0 {
 		maxConcurrency = defaultMaxConcurrency
 	}
-	store, err := oci.New(store.DefaultSociContentStorePath)
+	if cfg.ContentStorePath == "" {
+		return nil, fmt.Errorf("config store path is empty")
+	}
+	store, err := oci.New(cfg.ContentStorePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create SOCI store: %w", err)
 	}
