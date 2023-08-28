@@ -124,7 +124,7 @@ func (kc *keychain) GetCredentials(refspec reference.Spec, _ /* host */ string) 
 	return "", "", nil
 }
 
-func Keychain(ctx context.Context, port int) *keychain {
+func Init(ctx context.Context, port int) *keychain {
 	lock.Lock()
 	defer lock.Unlock()
 	if singleton == nil {
@@ -141,7 +141,7 @@ func Get() (*keychain, error) {
 	lock.Lock()
 	defer lock.Unlock()
 	if singleton == nil {
-		return nil, fmt.Errorf("local keychain must be initialized (with Keychain()) before being gotten (with Get())")
+		return nil, fmt.Errorf("local keychain must be initialized (with Init()) before being gotten (with Get())")
 	}
 	return singleton, nil
 }
