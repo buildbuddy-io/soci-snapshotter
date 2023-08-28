@@ -163,7 +163,7 @@ func main() {
 			rpc := grpc.NewServer(serverOpts...)
 
 			// Configure keychain
-			credsFuncs := []resolver.Credential{local_keychain.Keychain(ctx, local_keychain.Port()).GetCredentials}
+			credsFuncs := []resolver.Credential{local_keychain.Init(ctx, local_keychain.Port()).GetCredentials}
 			credsFuncs = append(credsFuncs, dockerconfig.NewDockerConfigKeychain(ctx))
 			if cfg.KubeconfigKeychainConfig.EnableKeychain {
 				var opts []kubeconfig.Option
