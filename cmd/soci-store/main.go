@@ -49,6 +49,7 @@ import (
 	"github.com/awslabs/soci-snapshotter/service/keychain/kubeconfig"
 	"github.com/awslabs/soci-snapshotter/service/keychain/local_keychain"
 	"github.com/awslabs/soci-snapshotter/service/resolver"
+	socistore "github.com/awslabs/soci-snapshotter/soci/store"
 	"github.com/awslabs/soci-snapshotter/store"
 	"github.com/awslabs/soci-snapshotter/ztoc"
 	"github.com/containerd/containerd/log"
@@ -95,6 +96,16 @@ func main() {
 
 	if mountPoint == "" {
 		log.G(ctx).Fatalf("mount point must be specified")
+	}
+
+	if serviceCfg.RootPath == "" {
+		serviceCfg.RootPath = config.DefaultSociSnapshotterRootPath
+	}
+	if serviceCfg.ContentStorePath == "" {
+		serviceCfg.ContentStorePath = socistore.DefaultSociContentStorePath
+	}
+	if serviceCfg.IndexStorePath == "" {
+		serviceCfg.IndexStorePath = socistore.DefaultSociIndexStorePath
 	}
 
 	// Get configuration from specified file
