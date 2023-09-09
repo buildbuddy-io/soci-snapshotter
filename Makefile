@@ -52,7 +52,7 @@ STARGZ_BINARY?=/usr/local/bin/containerd-stargz-grpc
 INTEG_TEST_CONTAINERS=$(strip $(shell docker ps -aqf name="soci-integration-*"))
 SOCI_BASE_IMAGE_IDS=$(shell docker image ls -qf reference="*:soci_test")
 
-CMD=soci-store soci-snapshotter-grpc soci
+CMD=soci-store soci-snapshotter-grpc soci soci-store-race
 
 CMD_BINARIES=$(addprefix $(OUTDIR)/,$(CMD))
 
@@ -87,6 +87,9 @@ soci: proto FORCE
 
 soci-store: proto
 	cd cmd/ ; GO111MODULE=$(GO111MODULE_VALUE) go build -o $(OUTDIR)/$@ $(GO_BUILD_FLAGS) $(GO_LD_FLAGS) ./soci-store
+
+soci-store-race: proto
+	cd cmd/ ; GO111MODULE=$(GO111MODULE_VALUE) go build -race -o $(OUTDIR)/$@ $(GO_BUILD_FLAGS) $(GO_LD_FLAGS) ./soci-store
 
 proto:
 	protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative proto/local_keychain.proto

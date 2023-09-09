@@ -41,6 +41,7 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
+	"reflect"
 	"sync"
 	"syscall"
 	"time"
@@ -195,7 +196,7 @@ func (n *rootnode) Lookup(ctx context.Context, name string, out *fuse.EntryOut) 
 		case *refnode:
 			copyAttr(&out.Attr, &tn.attr)
 		default:
-			log.G(ctx).Warn("rootnode.Lookup: uknown node type detected")
+			log.G(ctx).Warnf("rootnode.Lookup: unknown node type detected: %s", reflect.TypeOf(tn))
 			return nil, syscall.EIO
 		}
 		out.Attr.Ino = cn.StableAttr().Ino
@@ -234,6 +235,7 @@ func (n *rootnode) Lookup(ctx context.Context, name string, out *fuse.EntryOut) 
 		out.Attr.Ino = uint64(ino)
 		cn.attr.Ino = uint64(ino)
 		sAttr.Ino = uint64(ino)
+		log.G(ctx).Debugf("refnode %s has ino %d", name, ino)
 		return n.NewInode(ctx, cn, sAttr)
 	})
 }
@@ -259,7 +261,7 @@ func (n *refnode) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (
 		case *layernode:
 			copyAttr(&out.Attr, &tn.attr)
 		default:
-			log.G(ctx).Warn("rootnode.Lookup: uknown node type detected")
+			log.G(ctx).Warnf("refnode.Lookup: unknown node type detected: %s", reflect.TypeOf(tn))
 			return nil, syscall.EIO
 		}
 		out.Attr.Ino = cn.StableAttr().Ino
@@ -281,6 +283,7 @@ func (n *refnode) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (
 		out.Attr.Ino = uint64(ino)
 		cn.attr.Ino = uint64(ino)
 		sAttr.Ino = uint64(ino)
+		log.G(ctx).Debugf("layernode %s (reference %s) has ino %d", name, n.ref.String(), ino)
 		return n.NewInode(ctx, cn, sAttr)
 	})
 }
@@ -403,6 +406,9 @@ func (n *layernode) Lookup(ctx context.Context, name string, out *fuse.EntryOut)
 			}
 			log.G(ctx).WithField(remoteSnapshotLogKey, prepareFailed).
 				WithField("layerdigest", n.digest).
+				WithField("ref", n.refnode.ref.String()).
+				WithField("refnode-ino", n.refnode.attr.Ino).
+				WithField("layer-ino", n.attr.Ino).
 				WithError(err).
 				Debugf("error resolving layer (context error: %v)", cErr)
 			log.G(ctx).WithError(err).Warnf("failed to mount layer %q: %q", name, n.digest)
