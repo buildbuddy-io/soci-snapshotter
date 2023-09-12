@@ -210,9 +210,10 @@ func newNode(layerDgst digest.Digest, r reader.Reader, blob remote.Blob, baseIno
 	}
 	ffs.s = ffs.newState(layerDgst, blob)
 	return &node{
-		id:   rootID,
-		attr: rootAttr,
-		fs:   ffs,
+		id:     rootID,
+		attr:   rootAttr,
+		fs:     ffs,
+		entsMu: sync.Mutex{},
 	}, nil
 }
 
@@ -463,9 +464,10 @@ func (n *node) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (*fu
 		return nil, syscall.EIO
 	}
 	return n.NewInode(ctx, &node{
-		id:   id,
-		fs:   n.fs,
-		attr: ce,
+		id:     id,
+		fs:     n.fs,
+		attr:   ce,
+		entsMu: sync.Mutex{},
 	}, entryToAttr(ino, ce, &out.Attr)), 0
 }
 
