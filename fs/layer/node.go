@@ -215,6 +215,7 @@ func newNode(layerDgst digest.Digest, r reader.Reader, blob remote.Blob, baseIno
 		attr:     rootAttr,
 		fs:       ffs,
 		idMapper: idMapper,
+		entsMu: sync.Mutex{},
 	}, nil
 }
 
@@ -470,6 +471,7 @@ func (n *node) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (*fu
 		fs:       n.fs,
 		attr:     ce,
 		idMapper: n.idMapper,
+		entsMu:   sync.Mutex{},
 	}, n.entryToAttr(ino, ce, &out.Attr)), 0
 }
 
