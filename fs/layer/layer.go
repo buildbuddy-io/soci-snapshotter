@@ -286,7 +286,7 @@ func (r *Resolver) Resolve(ctx context.Context, hosts []docker.RegistryHost, ref
 
 	ztocReader, err := r.artifactStore.Fetch(ctx, sociDesc)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("ztoc not found (possibly layer too small for indexing): %w", err)
 	}
 	defer ztocReader.Close()
 	// Check if the ztoc exists (will be passed from fs)
