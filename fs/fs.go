@@ -210,7 +210,7 @@ func WithPullModes(pullModes config.PullModes) Option {
 	}
 }
 
-func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts ...Option) (_ snapshot.FileSystem, err error) {
+func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts ...Option) (_ snapshot.FileSystem, _ *bf.BackgroundFetcher, err error) {
 	var fsOpts options
 	for _, o := range opts {
 		o(&fsOpts)
@@ -242,7 +242,7 @@ func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts .
 	if pullModes.Parallel.Enable &&
 		cfg.ContentStoreConfig.Type != config.ContainerdContentStoreType &&
 		!pullModes.Parallel.DiscardUnpackedLayers {
-		return nil, errors.New("parallel_pull_unpack mode requires containerd content store (type=\"containerd\" under [content_store])")
+		return nil, nil, errors.New("parallel_pull_unpack mode requires containerd content store (type=\"containerd\" under [content_store])")
 	}
 	client := store.NewContainerdClient(cfg.ContentStoreConfig.ContainerdAddress)
 
@@ -252,7 +252,7 @@ func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts .
 		store.WithClient(client),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("cannot create content store: %w", err)
+		return nil, nil, fmt.Errorf("cannot create local store: %w", err)
 	}
 
 	var bgFetcher *bf.BackgroundFetcher
@@ -271,7 +271,7 @@ func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts .
 			bf.WithEmitMetricPeriod(bgEmitMetricPeriod))
 
 		if err != nil {
-			return nil, fmt.Errorf("cannot create background fetcher: %w", err)
+			return nil, nil, fmt.Errorf("cannot create background fetcher: %w", err)
 		}
 		go bgFetcher.Run(context.Background())
 	} else {
@@ -280,7 +280,7 @@ func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts .
 
 	r, err := layer.NewResolver(root, cfg, fsOpts.resolveHandlers, metadataStore, store, fsOpts.overlayOpaqueType, bgFetcher)
 	if err != nil {
-		return nil, fmt.Errorf("failed to setup resolver: %w", err)
+		return nil, nil, fmt.Errorf("failed to setup resolver: %w", err)
 	}
 
 	pr := newPreresolver(fsOpts.maxConcurrency)
@@ -300,12 +300,12 @@ func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts .
 
 	storage, err := newLayerUnpackDiskStorage(filepath.Dir(root))
 	if err != nil {
-		return nil, fmt.Errorf("error creating unpack directory on disk: %w", err)
+		return nil, nil, fmt.Errorf("error creating unpack directory on disk: %w", err)
 	}
 
 	unpackJobs, err := createParallelPullStructs(ctx, storage, &pullModes.Parallel)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	return &filesystem{
@@ -336,7 +336,7 @@ func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts .
 		pullModes:                   pullModes,
 		containerd:                  client,
 		inProgressImageUnpacks:      unpackJobs,
-	}, nil
+	}, bgFetcher, nil
 }
 
 func createParallelPullStructs(ctx context.Context, storage LayerUnpackJobStorage, parallelConfig *config.Parallel) (*unpackJobs, error) {
@@ -877,7 +877,7 @@ func (fs *filesystem) findSociIndexDesc(ctx context.Context, imageManifestDigest
 			log.G(ctx).Info("located index locally, bypassing Referrers API call")
 			return parseIndexDigest(sociIndexDigest)
 		} else {
-			log.G(ctx).Info("unable to locate soci index locally")
+			log.G(ctx).Warning("unable to locate soci index locally")
 		}
 	}
 
