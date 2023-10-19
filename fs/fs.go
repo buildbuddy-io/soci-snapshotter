@@ -191,7 +191,7 @@ func WithMaxConcurrency(maxConcurrency int64) Option {
 	}
 }
 
-func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts ...Option) (_ snapshot.FileSystem, err error) {
+func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts ...Option) (_ snapshot.FileSystem, _ *bf.BackgroundFetcher, err error) {
 	var fsOpts options
 	for _, o := range opts {
 		o(&fsOpts)
@@ -223,7 +223,7 @@ func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts .
 		store.WithNamespace(cfg.ContentStoreConfig.Namespace),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("cannot create content store: %w", err)
+		return nil, nil, fmt.Errorf("cannot create local store: %w", err)
 	}
 
 	var bgFetcher *bf.BackgroundFetcher
@@ -242,7 +242,7 @@ func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts .
 			bf.WithEmitMetricPeriod(bgEmitMetricPeriod))
 
 		if err != nil {
-			return nil, fmt.Errorf("cannot create background fetcher: %w", err)
+			return nil, nil, fmt.Errorf("cannot create background fetcher: %w", err)
 		}
 		go bgFetcher.Run(context.Background())
 	} else {
@@ -251,7 +251,7 @@ func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts .
 
 	r, err := layer.NewResolver(root, cfg, fsOpts.resolveHandlers, metadataStore, store, fsOpts.overlayOpaqueType, bgFetcher)
 	if err != nil {
-		return nil, fmt.Errorf("failed to setup resolver: %w", err)
+		return nil, nil, fmt.Errorf("failed to setup resolver: %w", err)
 	}
 
 	pr := newPreresolver(fsOpts.maxConcurrency)
@@ -295,7 +295,7 @@ func NewFilesystem(ctx context.Context, root string, cfg config.FSConfig, opts .
 		mountTimeout:                mountTimeout,
 		fuseMetricsEmitWaitDuration: fuseMetricsEmitWaitDuration,
 		pr:                          pr,
-	}, nil
+	}, bgFetcher, nil
 }
 
 type sociContext struct {
@@ -345,7 +345,7 @@ func (c *sociContext) Init(fsCtx context.Context, ctx context.Context, imageRef,
 				indexDesc.Digest = digest.Digest(indexDigest)
 				log.G(ctx).Info("located index locally, bypassing Referrers API call")
 			} else {
-				log.G(ctx).Info("unable to locate soci index locally")
+				log.G(ctx).Warning("unable to locate soci index locally")
 			}
 		}
 
