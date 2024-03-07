@@ -164,7 +164,7 @@ func (r *inoReleasable) releasable() bool {
 
 func (fs *fs) newInodeWithID(ctx context.Context, p func(uint32) fusefs.InodeEmbedder) (*fusefs.Inode, syscall.Errno) {
 	var ino fusefs.InodeEmbedder
-	if err := fs.nodeMap.add(func(id uint32) (releasable, error) {
+	if err := fs.nodeMap.add(ctx, func(id uint32) (releasable, error) {
 		ino = p(id)
 		return &inoReleasable{ino}, nil
 	}); err != nil || ino == nil {
@@ -434,7 +434,7 @@ func (n *layernode) Lookup(ctx context.Context, name string, out *fuse.EntryOut)
 
 		var cn *fusefs.Inode
 		var errno syscall.Errno
-		err = n.fs.layerMap.add(func(id uint32) (releasable, error) {
+		err = n.fs.layerMap.add(ctx, func(id uint32) (releasable, error) {
 			root, err := l.RootNode(id)
 			if err != nil {
 				return nil, err
@@ -637,7 +637,7 @@ type releasable interface {
 
 // add reserves an unique uint32 object for the provided releasable object.
 // when that object become releasable, that ID will be reused for other objects.
-func (m *idMap) add(p func(uint32) (releasable, error)) error {
+func (m *idMap) add(ctx context.Context, p func(uint32) (releasable, error)) error {
 	m.cleanupG.Do("cleanup", func() (interface{}, error) {
 		m.mu.Lock()
 		defer m.mu.Unlock()
@@ -645,6 +645,7 @@ func (m *idMap) add(p func(uint32) (releasable, error)) error {
 		for i := uint32(0); i <= m.max; i++ {
 			if e, ok := m.m[i]; ok {
 				if e.releasable() {
+					log.G(context.Background()).Debugf("releasing ino %d", i)
 					delete(m.m, i)
 				} else {
 					max = i
@@ -667,7 +668,11 @@ func (m *idMap) add(p func(uint32) (releasable, error)) error {
 			continue
 		}
 		e, ok := m.m[i]
-		if !ok || e.releasable() {
+		releasable := e.releasable()
+		if !ok || releasable {
+			if releasable {
+				log.G(ctx).Debugf("reusing ino %d because its releasable", i)
+			}
 			r, err := p(i)
 			if err != nil {
 				return err
