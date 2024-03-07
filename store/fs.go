@@ -207,6 +207,7 @@ func (n *rootnode) Lookup(ctx context.Context, name string, out *fuse.EntryOut) 
 		cn := &fusefs.MemSymlink{Data: []byte(n.fs.layerManager.refPool.root())}
 		copyAttr(&cn.Attr, &out.Attr)
 		return n.fs.newInodeWithID(ctx, func(ino uint32) fusefs.InodeEmbedder {
+			log.G(ctx).Debugf("allocated ino %d for ./pool", ino)
 			out.Attr.Ino = uint64(ino)
 			cn.Attr.Ino = uint64(ino)
 			sAttr.Ino = uint64(ino)
@@ -226,11 +227,13 @@ func (n *rootnode) Lookup(ctx context.Context, name string, out *fuse.EntryOut) 
 	}
 	sAttr := defaultDirAttr(&out.Attr)
 	cn := &refnode{
-		fs:  n.fs,
-		ref: refspec,
+		fs:   n.fs,
+		ref:  refspec,
+		name: name,
 	}
 	copyAttr(&cn.attr, &out.Attr)
 	return n.fs.newInodeWithID(ctx, func(ino uint32) fusefs.InodeEmbedder {
+		log.G(ctx).Debugf("allocated ino %d for ./%s", ino, name)
 		out.Attr.Ino = uint64(ino)
 		cn.attr.Ino = uint64(ino)
 		sAttr.Ino = uint64(ino)
@@ -246,6 +249,8 @@ type refnode struct {
 	attr fuse.Attr
 
 	ref reference.Spec
+
+	name string
 }
 
 var _ = (fusefs.InodeEmbedder)((*refnode)(nil))
@@ -279,10 +284,10 @@ func (n *refnode) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (
 	}
 	copyAttr(&cn.attr, &out.Attr)
 	return n.fs.newInodeWithID(ctx, func(ino uint32) fusefs.InodeEmbedder {
+		log.G(ctx).Debugf("allocated ino %d for ./%s/%s", ino, n.name, name)
 		out.Attr.Ino = uint64(ino)
 		cn.attr.Ino = uint64(ino)
 		sAttr.Ino = uint64(ino)
-		log.G(ctx).Debugf("layernode %s (reference %s) has ino %d", name, n.ref.String(), ino)
 		return n.NewInode(ctx, cn, sAttr)
 	})
 }
@@ -367,6 +372,7 @@ func (n *layernode) Lookup(ctx context.Context, name string, out *fuse.EntryOut)
 		cn := &fusefs.MemRegularFile{Data: infoData}
 		copyAttr(&cn.Attr, &out.Attr)
 		return n.fs.newInodeWithID(ctx, func(ino uint32) fusefs.InodeEmbedder {
+			log.G(ctx).Debugf("allocated ino %d for ./%s/%s/info -- size is %d", ino, n.refnode.name, n.digest.String(), len(infoData))
 			out.Attr.Ino = uint64(ino)
 			cn.Attr.Ino = uint64(ino)
 			sAttr.Ino = uint64(ino)
@@ -418,6 +424,7 @@ func (n *layernode) Lookup(ctx context.Context, name string, out *fuse.EntryOut)
 			cn := &blobnode{l: l}
 			copyAttr(&cn.attr, &out.Attr)
 			return n.fs.newInodeWithID(ctx, func(ino uint32) fusefs.InodeEmbedder {
+				log.G(ctx).Debugf("allocated ino %d for ./%s/%s/blob", ino, n.refnode.name, n.digest.String())
 				out.Attr.Ino = uint64(ino)
 				cn.attr.Ino = uint64(ino)
 				sAttr.Ino = uint64(ino)
