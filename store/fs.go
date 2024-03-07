@@ -164,7 +164,7 @@ func (r *inoReleasable) releasable() bool {
 
 func (fs *fs) newInodeWithID(ctx context.Context, p func(uint32) fusefs.InodeEmbedder) (*fusefs.Inode, syscall.Errno) {
 	var ino fusefs.InodeEmbedder
-	if err := fs.nodeMap.add(func(id uint32) (releasable, error) {
+	if err := fs.nodeMap.add(ctx, func(id uint32) (releasable, error) {
 		ino = p(id)
 		return &inoReleasable{ino}, nil
 	}); err != nil || ino == nil {
@@ -207,6 +207,7 @@ func (n *rootnode) Lookup(ctx context.Context, name string, out *fuse.EntryOut) 
 		cn := &fusefs.MemSymlink{Data: []byte(n.fs.layerManager.refPool.root())}
 		copyAttr(&cn.Attr, &out.Attr)
 		return n.fs.newInodeWithID(ctx, func(ino uint32) fusefs.InodeEmbedder {
+			log.G(ctx).Debugf("allocated ino %d for ./pool", ino)
 			out.Attr.Ino = uint64(ino)
 			cn.Attr.Ino = uint64(ino)
 			sAttr.Ino = uint64(ino)
@@ -226,11 +227,13 @@ func (n *rootnode) Lookup(ctx context.Context, name string, out *fuse.EntryOut) 
 	}
 	sAttr := defaultDirAttr(&out.Attr)
 	cn := &refnode{
-		fs:  n.fs,
-		ref: refspec,
+		fs:   n.fs,
+		ref:  refspec,
+		name: name,
 	}
 	copyAttr(&cn.attr, &out.Attr)
 	return n.fs.newInodeWithID(ctx, func(ino uint32) fusefs.InodeEmbedder {
+		log.G(ctx).Debugf("allocated ino %d for ./%s", ino, name)
 		out.Attr.Ino = uint64(ino)
 		cn.attr.Ino = uint64(ino)
 		sAttr.Ino = uint64(ino)
@@ -246,6 +249,8 @@ type refnode struct {
 	attr fuse.Attr
 
 	ref reference.Spec
+
+	name string
 }
 
 var _ = (fusefs.InodeEmbedder)((*refnode)(nil))
@@ -279,10 +284,10 @@ func (n *refnode) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (
 	}
 	copyAttr(&cn.attr, &out.Attr)
 	return n.fs.newInodeWithID(ctx, func(ino uint32) fusefs.InodeEmbedder {
+		log.G(ctx).Debugf("allocated ino %d for ./%s/%s", ino, n.name, name)
 		out.Attr.Ino = uint64(ino)
 		cn.attr.Ino = uint64(ino)
 		sAttr.Ino = uint64(ino)
-		log.G(ctx).Debugf("layernode %s (reference %s) has ino %d", name, n.ref.String(), ino)
 		return n.NewInode(ctx, cn, sAttr)
 	})
 }
@@ -367,6 +372,7 @@ func (n *layernode) Lookup(ctx context.Context, name string, out *fuse.EntryOut)
 		cn := &fusefs.MemRegularFile{Data: infoData}
 		copyAttr(&cn.Attr, &out.Attr)
 		return n.fs.newInodeWithID(ctx, func(ino uint32) fusefs.InodeEmbedder {
+			log.G(ctx).Debugf("allocated ino %d for ./%s/%s/info -- size is %d", ino, n.refnode.name, n.digest.String(), len(infoData))
 			out.Attr.Ino = uint64(ino)
 			cn.Attr.Ino = uint64(ino)
 			sAttr.Ino = uint64(ino)
@@ -418,6 +424,7 @@ func (n *layernode) Lookup(ctx context.Context, name string, out *fuse.EntryOut)
 			cn := &blobnode{l: l}
 			copyAttr(&cn.attr, &out.Attr)
 			return n.fs.newInodeWithID(ctx, func(ino uint32) fusefs.InodeEmbedder {
+				log.G(ctx).Debugf("allocated ino %d for ./%s/%s/blob", ino, n.refnode.name, n.digest.String())
 				out.Attr.Ino = uint64(ino)
 				cn.attr.Ino = uint64(ino)
 				sAttr.Ino = uint64(ino)
@@ -427,7 +434,7 @@ func (n *layernode) Lookup(ctx context.Context, name string, out *fuse.EntryOut)
 
 		var cn *fusefs.Inode
 		var errno syscall.Errno
-		err = n.fs.layerMap.add(func(id uint32) (releasable, error) {
+		err = n.fs.layerMap.add(ctx, func(id uint32) (releasable, error) {
 			root, err := l.RootNode(id)
 			if err != nil {
 				return nil, err
@@ -630,7 +637,7 @@ type releasable interface {
 
 // add reserves an unique uint32 object for the provided releasable object.
 // when that object become releasable, that ID will be reused for other objects.
-func (m *idMap) add(p func(uint32) (releasable, error)) error {
+func (m *idMap) add(ctx context.Context, p func(uint32) (releasable, error)) error {
 	m.cleanupG.Do("cleanup", func() (interface{}, error) {
 		m.mu.Lock()
 		defer m.mu.Unlock()
@@ -638,6 +645,7 @@ func (m *idMap) add(p func(uint32) (releasable, error)) error {
 		for i := uint32(0); i <= m.max; i++ {
 			if e, ok := m.m[i]; ok {
 				if e.releasable() {
+					log.G(context.Background()).Debugf("releasing ino %d", i)
 					delete(m.m, i)
 				} else {
 					max = i
@@ -660,7 +668,11 @@ func (m *idMap) add(p func(uint32) (releasable, error)) error {
 			continue
 		}
 		e, ok := m.m[i]
-		if !ok || e.releasable() {
+		releasable := e.releasable()
+		if !ok || releasable {
+			if releasable {
+				log.G(ctx).Debugf("reusing ino %d because its releasable", i)
+			}
 			r, err := p(i)
 			if err != nil {
 				return err
