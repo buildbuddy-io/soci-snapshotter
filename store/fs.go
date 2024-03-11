@@ -668,7 +668,7 @@ func (m *idMap) add(ctx context.Context, p func(uint32) (releasable, error)) err
 			continue
 		}
 		e, ok := m.m[i]
-		releaseable := false
+		releasable := false
 		if ok {
 			releasable = e.releasable()
 		}
