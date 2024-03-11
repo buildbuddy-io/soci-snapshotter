@@ -667,12 +667,12 @@ func (m *idMap) add(ctx context.Context, p func(uint32) (releaseable, error)) er
 		if i == 0 {
 			continue
 		}
-		e, ok := m.m[i]
+		e, _ := m.m[i]
 		releaseable := false
-		if ok {
+		if e != nil {
 			releaseable = e.releaseable()
 		}
-		if !ok || releaseable {
+		if e == nil || releaseable {
 			if releaseable {
 				log.G(ctx).Debugf("reusing ino %d because it's releaseable", i)
 			}
