@@ -8,6 +8,7 @@ require (
 	github.com/coreos/go-systemd/v22 v22.5.0
 	github.com/docker/cli v23.0.6+incompatible
 	github.com/docker/go-metrics v0.0.1
+	github.com/hashicorp/go-multierror v1.1.1
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.0-rc3
 	github.com/pelletier/go-toml v1.9.5
@@ -60,7 +61,6 @@ require (
 	github.com/hanwen/go-fuse/v2 v2.4.1-0.20231001162222-fc2c4d3da0a0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
-	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/hashicorp/go-retryablehttp v0.7.2 // indirect
 	github.com/imdario/mergo v0.3.13 // indirect
 	github.com/intel/goresctrl v0.3.0 // indirect
@@ -120,6 +120,13 @@ replace (
 	// Import local packages.
 	github.com/awslabs/soci-snapshotter v0.0.0 => ../
 	github.com/awslabs/soci-snapshotter v0.0.0-local => ../
+
+	// Temporary fork to address these bugs:
+	// - https://github.com/hanwen/go-fuse/issues/504
+	// - https://github.com/containerd/stargz-snapshotter/issues/1594
+	//
+	// Revert once https://github.com/hanwen/go-fuse/pull/520 is merged
+	github.com/hanwen/go-fuse/v2 => github.com/iain-macdonald/go-fuse/v2 v2.0.0-20240610220148-dfe6a153c480
 
 	// Temporary fork for avoiding importing patent-protected code: https://github.com/hashicorp/golang-lru/issues/73
 	github.com/hashicorp/golang-lru => github.com/ktock/golang-lru v0.5.5-0.20211029085301-ec551be6f75c
