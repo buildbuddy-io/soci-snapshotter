@@ -117,6 +117,13 @@ replace (
 	github.com/awslabs/soci-snapshotter v0.0.0 => ../
 	github.com/awslabs/soci-snapshotter v0.0.0-local => ../
 
+	// Temporary fork to address these bugs:
+	// - https://github.com/hanwen/go-fuse/issues/504
+	// - https://github.com/containerd/stargz-snapshotter/issues/1594
+	//
+	// Revert once https://github.com/hanwen/go-fuse/pull/520 is merged
+	github.com/hanwen/go-fuse/v2 => github.com/iain-macdonald/go-fuse/v2 v2.0.0-20240610220148-dfe6a153c480
+
 	// Temporary fork for avoiding importing patent-protected code: https://github.com/hashicorp/golang-lru/issues/73
 	github.com/hashicorp/golang-lru => github.com/ktock/golang-lru v0.5.5-0.20211029085301-ec551be6f75c
 )
