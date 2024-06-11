@@ -144,7 +144,7 @@ func (lh *layerReleaseable) release() {
 }
 
 func isForgotten(n *fusefs.Inode) bool {
-	if !n.Forgotten() {
+	if n == nil || !n.Forgotten() {
 		return false
 	}
 	for _, cn := range n.Children() {
@@ -160,7 +160,7 @@ type inoReleaseable struct {
 }
 
 func (r *inoReleaseable) releaseable() bool {
-	return r.n.EmbeddedInode().Forgotten()
+	return r.n.EmbeddedInode() != nil && r.n.EmbeddedInode().Forgotten()
 }
 
 func (fs *fs) newInodeWithID(ctx context.Context, p func(uint32) fusefs.InodeEmbedder) (*fusefs.Inode, syscall.Errno) {
