@@ -1,9 +1,11 @@
 name: Release
 
 on:
+  workflow_dispatch:
+    # Enables manual activation of the workflow
   push:
     tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-buildbuddy'
   pull_request:
     branches: ['main', 'release/**']
     paths:
@@ -53,11 +55,21 @@ jobs:
       - name: Setup variables and release directories
         run: |
           export release_tag=${{ env.RELEASE_TAG }}
-          export release_version=${release_tag/v/} # Remove v from tag name
+          export release_version=${release_tag#v} # Remove v from tag name
           echo "DYNAMIC_BINARY_NAME=soci-snapshotter-${release_version}-linux-amd64.tar.gz" >> $GITHUB_ENV
           echo "STATIC_BINARY_NAME=soci-snapshotter-${release_version}-linux-amd64-static.tar.gz" >> $GITHUB_ENV
 
           mkdir release-${{ matrix.os }}
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          version: "23.2"
+      - name: Install protoc-gen-go
+        run: go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.34.2
+      - name: Install protoc-gen-go-grpc
+        run: go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.4.0
+      - name: Add go binaries to PATH
+        run: echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
       - name: Create release binaries
         run: make RELEASE_TAG=${{ env.RELEASE_TAG }} release
       - uses: actions/upload-artifact@v4
@@ -86,8 +98,8 @@ jobs:
       - run: bash scripts/verify-release-artifacts.sh ${{ needs.generate-artifacts.outputs.release_tag }}
 
   create-release:
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    needs: validate-artifacts
+    if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || github.event_name == 'workflow_dispatch'
+    needs: [generate-artifacts, validate-artifacts]
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v5
