@@ -53,7 +53,6 @@ import (
 	"github.com/awslabs/soci-snapshotter/store"
 	"github.com/awslabs/soci-snapshotter/ztoc"
 	"github.com/containerd/containerd/log"
-	"github.com/pelletier/go-toml"
 
 	sddaemon "github.com/coreos/go-systemd/v22/daemon"
 	"github.com/hashicorp/go-multierror"
@@ -110,13 +109,11 @@ func main() {
 
 	// Get configuration from specified file
 	if *configPath != "" {
-		tree, err := toml.LoadFile(*configPath)
-		if err != nil && !(os.IsNotExist(err) && *configPath == defaultConfigPath) {
-			log.G(ctx).WithError(err).Fatalf("failed to load config file %q", *configPath)
+		cfg, err := config.NewConfigFromToml(*configPath)
+		if err != nil {
+			log.G(ctx).WithError(err).Fatal(err)
 		}
-		if err := tree.Unmarshal(&serviceCfg); err != nil {
-			log.G(ctx).WithError(err).Fatalf("failed to unmarshal config file %q", *configPath)
-		}
+		serviceCfg = cfg.ServiceConfig
 	}
 
 	// Prepare kubeconfig-based keychain if required
